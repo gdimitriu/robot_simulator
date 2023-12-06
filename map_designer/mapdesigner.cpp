@@ -1,0 +1,259 @@
+#include "mapdesigner.h"
+#include "ui_mapdesigner.h"
+#include <QFileDialog>
+#include <QPainter>
+#include <QRect>
+#include <QSignalMapper>
+#include "wallelement.h"
+#include "editproperty.h"
+
+MapDesigner::MapDesigner(QWidget *parent) :
+    QMainWindow(parent),
+    ui(new Ui::MapDesigner)
+{
+    ui->setupUi(this);
+    createActions();
+    createMenus();
+    setAttribute(Qt::WA_DeleteOnClose);
+    isTracking = false;
+    mapElements = new QLinkedList<MapElement *>();
+    currentElement = nullptr;
+    currentOperation = Operation::NONE;
+    DrawingButton = Qt::RightButton;
+}
+
+MapDesigner::~MapDesigner()
+{
+    delete ui;
+    QLinkedList<MapElement *>::iterator it;
+    for ( it = mapElements->begin(); it != mapElements->end(); it++ )
+    {
+        delete *it;
+    }
+    delete mapElements;
+}
+
+void MapDesigner::createActions()
+{
+    newAction = new QAction(tr("&New"), this);
+    newAction->setShortcut(tr("Ctrl+N"));
+    newAction->setStatusTip(tr("Create a new map"));
+    connect(newAction, SIGNAL(triggered()), this, SLOT(newFile()));
+
+    openAction = new QAction(tr("&Open"), this);
+    openAction->setShortcut(tr("Ctrl+O"));
+    openAction->setStatusTip(tr("Open a map"));
+    connect(openAction, SIGNAL(triggered()), this, SLOT(open()));
+
+    saveAction = new QAction(tr("&Save"), this);
+    saveAction->setShortcut(tr("Ctrl+S"));
+    saveAction->setStatusTip(tr("Save map"));
+    connect(saveAction, SIGNAL(triggered()), this, SLOT(save()));
+
+    saveAsAction = new QAction(tr("Save &as"), this);
+    saveAsAction->setStatusTip(tr("Save as map"));
+    connect(saveAsAction, SIGNAL(triggered()), this, SLOT(saveAs()));
+
+    addWallAction = new QAction(tr("&Wall"), this);
+    addWallAction->setStatusTip(tr("Add Wall to map"));
+    connect(addWallAction, SIGNAL(triggered()), this, SLOT(addWall()));
+
+    addObjectAction = new QAction(tr("&Object"), this);
+    addObjectAction->setStatusTip(tr("Add Object to map"));
+    connect(addObjectAction, SIGNAL(triggered()), this, SLOT(addObject()));
+
+    addDoorAction = new QAction(tr("&Door"), this);
+    addDoorAction->setStatusTip(tr("Add Door to map"));
+    connect(addDoorAction, SIGNAL(triggered()), this, SLOT(addDoor()));
+
+    addEditAction = new QAction(tr("&Edit"), this);
+    addDoorAction->setStatusTip(tr("Edit an element from map"));
+    connect(addEditAction, SIGNAL(triggered()), this, SLOT(editElement()));
+
+}
+
+void MapDesigner::createMenus()
+{
+    fileMenu = menuBar()->addMenu(tr("&File"));
+    fileMenu->addAction(newAction);
+    fileMenu->addAction(openAction);
+    fileMenu->addAction(saveAction);
+    fileMenu->addAction(saveAsAction);
+}
+
+void MapDesigner::newFile()
+{
+    QLinkedList<MapElement *>::iterator it;
+    for ( it = mapElements->begin(); it != mapElements->end(); it++ )
+    {
+        delete *it;
+    }
+    mapElements->clear();
+    currentElement = nullptr;
+    isTracking = false;
+    currentOperation = Operation::NONE;
+    update();
+}
+
+void MapDesigner::open()
+{
+    QString fileName = QFileDialog::getOpenFileName(this, tr("Open Map"), ".", tr("map files (*.map)"));
+}
+
+bool MapDesigner::save()
+{
+    return true;
+}
+
+bool MapDesigner::saveAs()
+{
+    QString fileName = QFileDialog::getSaveFileName(this, tr("Save as ...  Map"), ".", tr("map files (*.map)"));
+}
+
+
+void MapDesigner::paintEvent(QPaintEvent * event)
+{
+    QPainter painter(this);
+    QRect rect = event->rect();
+    painter.eraseRect(rect);
+
+    QLinkedList<MapElement *>::iterator itElements;
+    for ( itElements = mapElements->begin(); itElements != mapElements->end(); itElements++ )
+    {
+        (*itElements)->draw(&painter);
+    }
+}
+
+void MapDesigner::mousePressEvent(QMouseEvent *event)
+{
+    if ( event->button() != DrawingButton )
+    {
+        isTracking = false;
+        return;
+    }
+    QLinkedList<MapElement *>::iterator it;
+    switch ( currentOperation )
+    {
+    case  Operation::WALL:
+        isTracking = true;
+        currentElement = new WallElement(this);
+        dynamic_cast<WallElement *>(currentElement)->addStartPoint(event->pos());
+        mapElements->append(currentElement);
+        event->accept();
+        break;
+    case Operation::EDIT:
+        for ( it = mapElements->begin(); it != mapElements->end(); ++it )
+        {
+            if ( (*it)->isInside(event->pos()) )
+            {
+                bool ok;
+                do
+                {
+                    EditProperty size("Edit Lenght", "Length", this);
+                    size.setToEditProperty(QString::number((*it)->getLength()));
+                    size.exec();
+                    if ( size.isOk() )
+                    {
+                        double sz = size.getEditedProperty().toDouble(&ok);
+                        if ( ok )
+                            (*it)->setLength(sz);
+                    }
+                } while ( !ok );
+                break;
+            }
+        }
+        currentOperation = Operation::NONE;
+        event->accept();
+        break;
+    case Operation::DELETE:
+        for ( it = mapElements->begin(); it != mapElements->end(); ++it )
+        {
+            if ( (*it)->isInside(event->pos()) )
+            {
+                mapElements->erase(it);
+                break;
+            }
+        }
+        currentOperation = Operation::NONE;
+        event->accept();
+        break;
+    }
+    update();
+}
+
+void MapDesigner::mouseReleaseEvent(QMouseEvent *event)
+{
+    if ( event->button() == DrawingButton && isTracking )
+    {
+        isTracking = false;
+        if ( currentOperation == Operation::WALL && currentElement != nullptr )
+        {
+            WallElement *element = dynamic_cast<WallElement *>(currentElement);
+            element->addEndPoint(event->pos());
+            currentElement = nullptr;
+            bool ok;
+            do
+            {
+                EditProperty size("Add Lenght", "Length", this);
+                size.exec();
+                if ( size.isOk() )
+                {
+                    double sz = size.getEditedProperty().toDouble(&ok);
+                    if ( ok )
+                        element->setLength(sz);
+                }
+            } while ( !ok );
+        }
+        currentOperation = Operation::NONE;
+        update();
+    }
+}
+
+void MapDesigner::mouseMoveEvent(QMouseEvent *event)
+{
+    if ( isTracking )
+    {
+        if ( currentOperation == Operation::WALL  && currentElement != nullptr )
+        {
+            WallElement *element = dynamic_cast<WallElement *>(currentElement);
+            element->addEndPoint(event->pos());
+        }
+        update();
+    }
+}
+
+
+void MapDesigner::contextMenuEvent(QContextMenuEvent *event)
+{
+    if ( isTracking )
+    {
+        event->accept();
+        return;
+    }
+    QMenu popupMenu(this);
+    popupMenu.addAction(addWallAction);
+    popupMenu.addAction(addObjectAction);
+    popupMenu.addAction(addDoorAction);
+    popupMenu.addAction(addEditAction);
+    popupMenu.exec(event->globalPos());
+}
+
+void MapDesigner::addWall()
+{
+    currentOperation = Operation::WALL;
+}
+
+void MapDesigner::addObject()
+{
+    currentOperation = Operation::OBJECT;
+}
+
+void MapDesigner::addDoor()
+{
+    currentOperation = Operation::DOOR;
+}
+
+void MapDesigner::editElement()
+{
+    currentOperation = Operation::EDIT;
+}
