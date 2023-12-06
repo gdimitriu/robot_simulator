@@ -70,6 +70,10 @@ void MapDesigner::createActions()
     addDoorAction->setStatusTip(tr("Edit an element from map"));
     connect(addEditAction, SIGNAL(triggered()), this, SLOT(editElement()));
 
+    deleteAction = new QAction(tr("Dele&te"), this);
+    deleteAction->setStatusTip(tr("Delete an element from map"));
+    connect(deleteAction, SIGNAL(triggered()), this, SLOT(deleteElement()));
+
 }
 
 void MapDesigner::createMenus()
@@ -235,6 +239,7 @@ void MapDesigner::contextMenuEvent(QContextMenuEvent *event)
     popupMenu.addAction(addObjectAction);
     popupMenu.addAction(addDoorAction);
     popupMenu.addAction(addEditAction);
+    popupMenu.addAction(deleteAction);
     popupMenu.exec(event->globalPos());
 }
 
@@ -256,4 +261,9 @@ void MapDesigner::addDoor()
 void MapDesigner::editElement()
 {
     currentOperation = Operation::EDIT;
+}
+
+void MapDesigner::deleteElement()
+{
+    currentOperation = Operation::DELETE;
 }

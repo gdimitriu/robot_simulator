@@ -25,6 +25,7 @@ private slots:
     void addObject();
     void addDoor();
     void editElement();
+    void deleteElement();
 public:
     explicit MapDesigner(QWidget *parent = 0);
     ~MapDesigner();
@@ -47,6 +48,7 @@ private:
     QAction *addObjectAction;
     QAction *addDoorAction;
     QAction *addEditAction;
+    QAction *deleteAction;
 
     bool isTracking;
     enum class Operation { NONE, WALL, DOOR, OBJECT, EDIT , DELETE} currentOperation;
