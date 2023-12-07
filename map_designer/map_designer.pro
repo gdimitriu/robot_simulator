@@ -29,13 +29,15 @@ SOURCES += \
         mapdesigner.cpp \
     mapelement.cpp \
     wallelement.cpp \
-    editproperty.cpp
+    editproperty.cpp \
+    doorelement.cpp
 
 HEADERS += \
         mapdesigner.h \
     mapelement.h \
     wallelement.h \
-    editproperty.h
+    editproperty.h \
+    doorelement.h
 
 FORMS += \
         mapdesigner.ui

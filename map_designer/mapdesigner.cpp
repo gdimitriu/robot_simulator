@@ -5,6 +5,7 @@
 #include <QRect>
 #include <QSignalMapper>
 #include "wallelement.h"
+#include "doorelement.h"
 #include "editproperty.h"
 
 MapDesigner::MapDesigner(QWidget *parent) :
@@ -145,6 +146,13 @@ void MapDesigner::mousePressEvent(QMouseEvent *event)
         mapElements->append(currentElement);
         event->accept();
         break;
+    case  Operation::DOOR:
+        isTracking = true;
+        currentElement = new DoorElement(this);
+        dynamic_cast<DoorElement *>(currentElement)->addStartPoint(event->pos());
+        mapElements->append(currentElement);
+        event->accept();
+        break;
     case Operation::EDIT:
         for ( it = mapElements->begin(); it != mapElements->end(); ++it )
         {
@@ -190,23 +198,28 @@ void MapDesigner::mouseReleaseEvent(QMouseEvent *event)
     if ( event->button() == DrawingButton && isTracking )
     {
         isTracking = false;
-        if ( currentOperation == Operation::WALL && currentElement != nullptr )
-        {
-            WallElement *element = dynamic_cast<WallElement *>(currentElement);
-            element->addEndPoint(event->pos());
-            currentElement = nullptr;
-            bool ok;
-            do
+        if ( currentElement != nullptr) {
+            switch (currentOperation)
             {
-                EditProperty size("Add Lenght", "Length", this);
-                size.exec();
-                if ( size.isOk() )
+            case Operation::DOOR:
+            case Operation::WALL:
+                WallElement *element = dynamic_cast<WallElement *>(currentElement);
+                element->addEndPoint(event->pos());
+                currentElement = nullptr;
+                bool ok;
+                do
                 {
-                    double sz = size.getEditedProperty().toDouble(&ok);
-                    if ( ok )
-                        element->setLength(sz);
-                }
-            } while ( !ok );
+                    EditProperty size("Add Lenght", "Length", this);
+                    size.exec();
+                    if ( size.isOk() )
+                    {
+                        double sz = size.getEditedProperty().toDouble(&ok);
+                        if ( ok )
+                            element->setLength(sz);
+                    }
+                } while ( !ok );
+                break;
+            }
         }
         currentOperation = Operation::NONE;
         update();
@@ -217,10 +230,15 @@ void MapDesigner::mouseMoveEvent(QMouseEvent *event)
 {
     if ( isTracking )
     {
-        if ( currentOperation == Operation::WALL  && currentElement != nullptr )
-        {
-            WallElement *element = dynamic_cast<WallElement *>(currentElement);
-            element->addEndPoint(event->pos());
+        if ( currentElement != nullptr) {
+            switch (currentOperation)
+            {
+            case Operation::DOOR:
+            case Operation::WALL:
+                WallElement *element = dynamic_cast<WallElement *>(currentElement);
+                element->addEndPoint(event->pos());
+                break;
+            }
         }
         update();
     }
