@@ -4,9 +4,13 @@
 #include <QPainter>
 #include <QRect>
 #include <QSignalMapper>
+#include <QFile>
+#include <QDataStream>
 #include "wallelement.h"
 #include "doorelement.h"
 #include "editproperty.h"
+#include "elementfactory.h"
+
 
 MapDesigner::MapDesigner(QWidget *parent) :
     QMainWindow(parent),
@@ -55,6 +59,10 @@ void MapDesigner::createActions()
     saveAsAction->setStatusTip(tr("Save as map"));
     connect(saveAsAction, SIGNAL(triggered()), this, SLOT(saveAs()));
 
+    exportAsAction = new QAction(tr("&Export"), this);
+    exportAsAction->setStatusTip(tr("Export for use in robot simulator"));
+    connect(exportAsAction, SIGNAL(triggered()), this, SLOT(exportAs()));
+
     addWallAction = new QAction(tr("&Wall"), this);
     addWallAction->setStatusTip(tr("Add Wall to map"));
     connect(addWallAction, SIGNAL(triggered()), this, SLOT(addWall()));
@@ -84,6 +92,7 @@ void MapDesigner::createMenus()
     fileMenu->addAction(openAction);
     fileMenu->addAction(saveAction);
     fileMenu->addAction(saveAsAction);
+    fileMenu->addAction(exportAsAction);
 }
 
 void MapDesigner::newFile()
@@ -102,19 +111,62 @@ void MapDesigner::newFile()
 
 void MapDesigner::open()
 {
-    QString fileName = QFileDialog::getOpenFileName(this, tr("Open Map"), ".", tr("map files (*.map)"));
+    fileName = QFileDialog::getOpenFileName(this, tr("Open Map"), ".", tr("map files (*.map)"));
+    QFile file(fileName);
+    file.open(QIODevice::ReadOnly);
+    QDataStream in(&file);
+    mapElements->clear();
+    int sz;
+    in>>sz;
+    for ( int i = 0; i < sz; ++i )
+    {
+        QString type;
+        in>>type;
+        MapElement *el = ElementFactory::create(type, this);
+        in>>*el;
+        mapElements->append(el);
+    }
+    update();
 }
 
 bool MapDesigner::save()
 {
+    if ( fileName.isEmpty() )
+        return saveAs();
+    QFile file(fileName);
+    file.open(QIODevice::WriteOnly);
+    QDataStream out(&file);
+    out<<mapElements->size();
+    QLinkedList<MapElement *>::iterator it;
+    for ( it = mapElements->begin(); it != mapElements->end(); ++it )
+    {
+        out<<(*it)->getType();
+        out<<**it;
+    }
     return true;
 }
 
 bool MapDesigner::saveAs()
 {
-    QString fileName = QFileDialog::getSaveFileName(this, tr("Save as ...  Map"), ".", tr("map files (*.map)"));
+    fileName = QFileDialog::getSaveFileName(this, tr("Save as ...  Map"), ".", tr("map files (*.map)"));
+    QFile file(fileName);
+    file.open(QIODevice::WriteOnly);
+    QDataStream out(&file);
+    out<<mapElements->size();
+    QLinkedList<MapElement *>::iterator it;
+    for ( it = mapElements->begin(); it != mapElements->end(); ++it )
+    {
+        out<<(*it)->getType();
+        out<<**it;
+    }
+    return true;
 }
 
+
+bool MapDesigner::exportAs()
+{
+    QString fileName = QFileDialog::getSaveFileName(this, tr("Export as ... "), ".", tr("dat files (*.dat)"));
+}
 
 void MapDesigner::paintEvent(QPaintEvent * event)
 {

@@ -21,6 +21,7 @@ private slots:
     void open();
     bool save();
     bool saveAs();
+    bool exportAs();
     void addWall();
     void addObject();
     void addDoor();
@@ -42,6 +43,7 @@ private:
     QAction *openAction;
     QAction *saveAction;
     QAction *saveAsAction;
+    QAction *exportAsAction;
     QMenu *fileMenu;
 
     QAction *addWallAction;
@@ -58,6 +60,7 @@ private:
     Qt::MouseButton DrawingButton;
     QLinkedList<MapElement *> *mapElements;
     MapElement *currentElement;
+    QString fileName;
 };
 
 #endif // MAPDESIGNER_H

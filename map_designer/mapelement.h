@@ -5,6 +5,7 @@
 #include <QObject>
 #include <QPainter>
 #include <QPoint>
+#include <QDataStream>
 
 class MapElement : public QObject
 {
@@ -16,10 +17,22 @@ public:
     virtual bool isInside(QPoint point) = 0;
     virtual void setLength(double value);
     virtual double getLength();
+    virtual void read(QDataStream &in);
+    virtual void write(QDataStream &out);
+    virtual QString getType()
+    {
+        return QString("MapElement");
+    }
+    friend QDataStream &operator<<(QDataStream &, const MapElement &);
+    friend QDataStream &operator>>(QDataStream &, MapElement &);
 signals:
 protected:
     double length;
 
 };
+
+QDataStream &operator<<(QDataStream &, const MapElement &);
+QDataStream &operator>>(QDataStream &, MapElement &);
+
 
 #endif // MAPELEMENT_H

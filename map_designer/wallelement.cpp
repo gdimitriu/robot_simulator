@@ -113,3 +113,29 @@ void WallElement::addEndPoint(QPoint point)
         vectorDim.setP2(point + QPoint(30,0));
     }
 }
+
+void WallElement::read(QDataStream &in)
+{
+    in>>length;
+    in>>element;
+    in>>vectorDim;
+}
+
+void WallElement::write(QDataStream& out)
+{
+    out<<length;
+    out<<element;
+    out<<vectorDim;
+}
+
+QDataStream &operator<<(QDataStream &out, const WallElement &data)
+{
+    const_cast<WallElement &>(data).write(out);
+    return out;
+}
+
+QDataStream &operator>>(QDataStream &in, WallElement &data)
+{
+    data.read(in);
+    return in;
+}
